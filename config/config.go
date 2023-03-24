@@ -64,6 +64,7 @@ type AppConfig struct {
 
 	QueryEachSigningInfo bool `toml:"query-each-signing-info"`
 	Interval             int  `toml:"interval" default:"120"`
+	Metrics              bool `toml:"metrics"`
 
 	Prefix                    string `toml:"bech-prefix"`
 	ValidatorPrefix           string `toml:"bech-validator-prefix"`

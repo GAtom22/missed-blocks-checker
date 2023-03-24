@@ -98,6 +98,11 @@ func Execute(configPath string) {
 			}
 		}
 
+		// if no reporters but metrics enabled, update the metrics
+		if len(reporters) == 0 {
+			// TODO update metrics with report data
+		}
+
 		time.Sleep(time.Duration(appConfig.Interval) * time.Second)
 	}
 }

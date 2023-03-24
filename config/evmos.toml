@@ -8,6 +8,8 @@ bech-consensus-node-prefix = "evmosvalcons"
 bech-consensus-node-pubkey-prefix = "evmosvalconspub"
 # Scrape interval, in seconds. Defaults to 120
 interval = 3
+# Prometheus metrics
+metrics = true
 
 # Telegram reporter. All fields are mandatory, otherwise the reporter won't be enabled.
 [telegram]

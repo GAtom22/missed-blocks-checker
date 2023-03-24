@@ -8,8 +8,6 @@ bech-consensus-node-prefix = "cosmosvalcons"
 bech-consensus-node-pubkey-prefix = "cosmosvalconspub"
 # Scrape interval, in seconds. Defaults to 120
 interval = 120
-# Prometheus metrics
-metrics = false
 # List of validators to monitor, with it specified, only the selected validators
 # will be monitored. Cannot be used together with exclude-validators.
 # If both include-validators and exclude-validators are not specified,
@@ -108,3 +106,8 @@ config-path = "/home/user/config/missed-blocks-checker-telegram-labels.toml"
 token = "xorb-xxxyyyy"
 # A Slack channel or username to send messages to.
 chat = "#general"
+
+# Prometheus metrics
+[metrics]
+enabled = false
+port = 2112

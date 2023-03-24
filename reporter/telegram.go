@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github/GAtom22/missedblocks/client"
 	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/metrics"
 	"github/GAtom22/missedblocks/types"
 	"github/GAtom22/missedblocks/utils"
 	"html"
@@ -149,6 +150,9 @@ func (r TelegramReporter) Serialize(report Report) string {
 			timeToJail,
 			notifiers,
 		))
+		if r.AppConfig.Metrics.Enabled {
+			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.MissingBlocks)
+		}
 	}
 
 	return sb.String()
@@ -465,7 +469,7 @@ func (r *TelegramReporter) getChainParamsSerialized(
 	return sb.String()
 }
 
-func (r *TelegramReporter) subscribeToValidatorUpdates(message *tb.Message) {
+func (r *TelegramReporter) handleSubscriptionFromValidatorUpdates(message *tb.Message, action string, notifier func(string, string) error) {
 	if message.Sender.Username == "" {
 		r.sendMessage(message, "Please set your Telegram username first.")
 		return
@@ -473,12 +477,12 @@ func (r *TelegramReporter) subscribeToValidatorUpdates(message *tb.Message) {
 
 	args := strings.SplitAfterN(message.Text, " ", 2)
 	if len(args) < 2 {
-		r.sendMessage(message, "Usage: /subscribe &lt;validator address&gt;")
+		r.sendMessage(message, fmt.Sprintf("Usage: /%s &lt;validator address&gt;", action))
 		return
 	}
 
 	address := args[1]
-	r.Logger.Debug().Str("address", address).Msg("subscribeToValidatorUpdates: address")
+	r.Logger.Debug().Str("address", address).Msg(fmt.Sprintf("%sFromValidatorUpdates: address", action))
 
 	validator, err := r.Client.GetValidator(address)
 	if err != nil {
@@ -490,7 +494,7 @@ func (r *TelegramReporter) subscribeToValidatorUpdates(message *tb.Message) {
 		return
 	}
 
-	err = r.TelegramConfig.addNotifier(address, message.Sender.Username)
+	err = notifier(address, message.Sender.Username)
 	r.saveYamlConfig()
 
 	if err != nil {
@@ -500,73 +504,37 @@ func (r *TelegramReporter) subscribeToValidatorUpdates(message *tb.Message) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Subscribed to the notification of <code>%s</code> ", validator.Description.Moniker))
+	sb.WriteString(fmt.Sprintf("%s from the notification of <code>%s</code> ", action, validator.Description.Moniker))
 	sb.WriteString(r.ChainInfoConfig.GetValidatorPage(validator.OperatorAddress, "Explorer"))
 
 	r.sendMessage(message, sb.String())
 	r.Logger.Info().
 		Str("user", message.Sender.Username).
 		Str("address", address).
-		Msg("Successfully subscribed to validator's notifications.")
+		Msg(fmt.Sprintf("Successfully %s from validator's notifications.", action))
+}
+
+func (r *TelegramReporter) subscribeToValidatorUpdates(message *tb.Message) {
+	r.handleSubscriptionFromValidatorUpdates(message, "subscribed", r.TelegramConfig.addNotifier)
 }
 
 func (r *TelegramReporter) unsubscribeFromValidatorUpdates(message *tb.Message) {
-	if message.Sender.Username == "" {
-		r.sendMessage(message, "Please set your Telegram username first.")
-		return
-	}
-
-	args := strings.SplitAfterN(message.Text, " ", 2)
-	if len(args) < 2 {
-		r.sendMessage(message, "Usage: /unsubscribe &lt;validator address&gt;")
-		return
-	}
-
-	address := args[1]
-	r.Logger.Debug().Str("address", address).Msg("unsubscribeFromValidatorUpdates: address")
-
-	validator, err := r.Client.GetValidator(address)
-	if err != nil {
-		r.Logger.Error().
-			Str("address", address).
-			Err(err).
-			Msg("Could not get validator")
-		r.sendMessage(message, "Could not find validator")
-		return
-	}
-
-	err = r.TelegramConfig.removeNotifier(address, message.Sender.Username)
-	r.saveYamlConfig()
-
-	if err != nil {
-		r.sendMessage(message, err.Error())
-		r.saveYamlConfig()
-		return
-	}
-
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Unsubscribed from the notification of <code>%s</code> ", validator.Description.Moniker))
-	sb.WriteString(r.ChainInfoConfig.GetValidatorPage(validator.OperatorAddress, "Explorer"))
-
-	r.sendMessage(message, sb.String())
-	r.Logger.Info().
-		Str("user", message.Sender.Username).
-		Str("address", address).
-		Msg("Successfully unsubscribed from validator's notifications.")
+	r.handleSubscriptionFromValidatorUpdates(message, "unsubscribed", r.TelegramConfig.removeNotifier)
 }
 
 func (r *TelegramReporter) displayConfig(message *tb.Message) {
 	var sb strings.Builder
 
-	if len(r.AppConfig.ExcludeValidators) == 0 && len(r.AppConfig.IncludeValidators) == 0 {
+	switch {
+	case len(r.AppConfig.ExcludeValidators) == 0 && len(r.AppConfig.IncludeValidators) == 0:
 		sb.WriteString("<strong>Monitoring all validators.\n</strong>")
-	} else if len(r.AppConfig.IncludeValidators) == 0 {
+	case len(r.AppConfig.IncludeValidators) == 0:
 		sb.WriteString("<strong>Monitoring all validators, except the following ones:\n</strong>")
 
 		for _, validator := range r.AppConfig.ExcludeValidators {
 			sb.WriteString(" - " + r.ChainInfoConfig.GetValidatorPage(validator, validator) + "\n")
 		}
-	} else if len(r.AppConfig.ExcludeValidators) == 0 {
+	case len(r.AppConfig.ExcludeValidators) == 0:
 		sb.WriteString("<strong>Monitoring the following validators:\n</strong>")
 
 		for _, validator := range r.AppConfig.IncludeValidators {

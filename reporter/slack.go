@@ -3,6 +3,7 @@ package reporter
 import (
 	"fmt"
 	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/metrics"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -14,6 +15,7 @@ type SlackReporter struct {
 	SlackConfig     config.SlackConfig
 	Params          *config.Params
 	Logger          zerolog.Logger
+	metrics         bool
 
 	SlackClient slack.Client
 }
@@ -23,12 +25,14 @@ func NewSlackReporter(
 	slackConfig config.SlackConfig,
 	params *config.Params,
 	logger *zerolog.Logger,
+	metrics bool,
 ) *SlackReporter {
 	return &SlackReporter{
 		ChainInfoConfig: chainInfoConfig,
 		SlackConfig:     slackConfig,
 		Params:          params,
 		Logger:          logger.With().Str("component", "slack_reporter").Logger(),
+		metrics:         metrics,
 	}
 }
 
@@ -53,6 +57,10 @@ func (r SlackReporter) Serialize(report Report) string {
 			entry.Description,
 			timeToJail,
 		))
+
+		if r.metrics {
+			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.MissingBlocks)
+		}
 	}
 
 	return sb.String()

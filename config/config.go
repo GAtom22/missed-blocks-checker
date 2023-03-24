@@ -57,14 +57,19 @@ type NodeConfig struct {
 	TendermintRPC string `toml:"rpc-address" default:"http://localhost:26657"`
 }
 
+type Metrics struct {
+	Enabled bool `toml:"enabled"`
+	Port    int  `toml:"port" default:"2112"`
+}
+
 type AppConfig struct {
 	LogConfig       LogConfig       `toml:"log"`
 	ChainInfoConfig ChainInfoConfig `toml:"chain-info"`
 	NodeConfig      NodeConfig      `toml:"node"`
+	Metrics         Metrics         `toml:"metrics"`
 
 	QueryEachSigningInfo bool `toml:"query-each-signing-info"`
 	Interval             int  `toml:"interval" default:"120"`
-	Metrics              bool `toml:"metrics"`
 
 	Prefix                    string `toml:"bech-prefix"`
 	ValidatorPrefix           string `toml:"bech-validator-prefix"`

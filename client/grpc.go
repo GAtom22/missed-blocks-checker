@@ -130,7 +130,6 @@ func (grpc *TendermintGRPC) GetValidatorsState() (types.ValidatorsState, error) 
 
 // GetValidatorState gets an especific validator state
 func (grpc *TendermintGRPC) GetValidatorState(address string) (types.ValidatorState, error) {
-
 	validator, err := grpc.GetValidator(address)
 	if err != nil {
 		return types.ValidatorState{}, err
@@ -239,7 +238,6 @@ func (grpc *TendermintGRPC) GetValidatorsSigningInfo() ([]slashingtypes.Validato
 			},
 		},
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +254,6 @@ func (grpc *TendermintGRPC) GetValidatorSigningInfo(consAddress string) (slashin
 			ConsAddress: consAddress,
 		},
 	)
-
 	if err != nil {
 		return slashingtypes.ValidatorSigningInfo{}, err
 	}

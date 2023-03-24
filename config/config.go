@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -6,8 +6,15 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/mcuadros/go-defaults"
 )
+
+type Params struct {
+	AvgBlockTime       float64
+	SignedBlocksWindow int64
+	MissedBlocksToJail int64
+}
 
 type TelegramAppConfig struct {
 	Token      string `toml:"token"`
@@ -147,6 +154,13 @@ func (config *AppConfig) Validate() {
 	if len(config.IncludeValidators) != 0 && len(config.ExcludeValidators) != 0 {
 		GetDefaultLogger().Fatal().Msg("Cannot use --include and --exclude at the same time!")
 	}
+}
+
+func SetSdkConfigPrefixes(appConfig *AppConfig) {
+	config := sdk.GetConfig()
+	config.SetBech32PrefixForValidator(appConfig.ValidatorPrefix, appConfig.ValidatorPubkeyPrefix)
+	config.SetBech32PrefixForConsensusNode(appConfig.ConsensusNodePrefix, appConfig.ConsensusNodePubkeyPrefix)
+	config.Seal()
 }
 
 func (config *AppConfig) SetBechPrefixes() {

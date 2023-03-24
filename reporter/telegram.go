@@ -1,7 +1,11 @@
-package main
+package reporter
 
 import (
 	"fmt"
+	"github/GAtom22/missedblocks/client"
+	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/types"
+	"github/GAtom22/missedblocks/utils"
 	"html"
 	"math"
 	"os"
@@ -18,11 +22,11 @@ import (
 const MaxMessageSize = 4096
 
 type TelegramReporter struct {
-	ChainInfoConfig   ChainInfoConfig
-	TelegramAppConfig TelegramAppConfig
-	AppConfig         *AppConfig
-	Params            *Params
-	Client            *TendermintGRPC
+	ChainInfoConfig   config.ChainInfoConfig
+	TelegramAppConfig config.TelegramAppConfig
+	AppConfig         *config.AppConfig
+	Params            *config.Params
+	Client            *client.TendermintGRPC
 	Logger            zerolog.Logger
 
 	TelegramConfig TelegramConfig
@@ -39,11 +43,11 @@ type TelegramConfig struct {
 }
 
 func NewTelegramReporter(
-	chainInfoConfig ChainInfoConfig,
-	telegramAppConfig TelegramAppConfig,
-	appConfig *AppConfig,
-	params *Params,
-	client *TendermintGRPC,
+	chainInfoConfig config.ChainInfoConfig,
+	telegramAppConfig config.TelegramAppConfig,
+	appConfig *config.AppConfig,
+	params *config.Params,
+	client *client.TendermintGRPC,
 	logger *zerolog.Logger,
 ) *TelegramReporter {
 	return &TelegramReporter{
@@ -57,7 +61,7 @@ func NewTelegramReporter(
 }
 
 func (i *NotificationInfo) addNotifier(notifier string) error {
-	if stringInSlice(notifier, i.Notifiers) {
+	if utils.StringInSlice(notifier, i.Notifiers) {
 		return fmt.Errorf("You are already subscribed to this validator's notifications.") //nolint
 	}
 
@@ -66,18 +70,18 @@ func (i *NotificationInfo) addNotifier(notifier string) error {
 }
 
 func (i *NotificationInfo) removeNotifier(notifier string) error {
-	if !stringInSlice(notifier, i.Notifiers) {
+	if !utils.StringInSlice(notifier, i.Notifiers) {
 		return fmt.Errorf("You are not subscribed to this validator's notifications.") //nolint
 	}
 
-	i.Notifiers = removeFromSlice(i.Notifiers, notifier)
+	i.Notifiers = utils.RemoveFromSlice(i.Notifiers, notifier)
 	return nil
 }
 
 func (c *TelegramConfig) getNotifiedValidators(notifier string) []string {
 	validators := []string{}
 	for _, info := range c.NotiticationInfos {
-		if stringInSlice(notifier, info.Notifiers) {
+		if utils.StringInSlice(notifier, info.Notifiers) {
 			validators = append(validators, info.ValidatorAddress)
 		}
 	}
@@ -314,7 +318,7 @@ func (r *TelegramReporter) getValidatorsStatus(message *tb.Message, getOnlyMissi
 		return
 	}
 
-	state = FilterMap(state, func(s ValidatorState) bool {
+	state = utils.FilterMap(state, func(s types.ValidatorState) bool {
 		if getOnlyMissing {
 			group, err := r.AppConfig.MissedBlocksGroups.GetGroup(s.MissedBlocks)
 			if err != nil {
@@ -330,7 +334,7 @@ func (r *TelegramReporter) getValidatorsStatus(message *tb.Message, getOnlyMissi
 		return s.Active
 	})
 
-	stateArray := MapToSlice(state)
+	stateArray := utils.MapToSlice(state)
 	sort.SliceStable(stateArray, func(i, j int) bool {
 		return stateArray[i].MissedBlocks < stateArray[j].MissedBlocks
 	})
@@ -392,7 +396,7 @@ func (r *TelegramReporter) getSubscribedValidatorsStatuses(message *tb.Message) 
 		Msg("Successfully returned subscribed validator statuses")
 }
 
-func (r *TelegramReporter) getValidatorWithMissedBlocksSerialized(state ValidatorState) string {
+func (r *TelegramReporter) getValidatorWithMissedBlocksSerialized(state types.ValidatorState) string {
 	var sb strings.Builder
 	sb.WriteString(r.ChainInfoConfig.GetValidatorPage(state.Address, state.Moniker) + "\n")
 	sb.WriteString(fmt.Sprintf(
@@ -405,7 +409,7 @@ func (r *TelegramReporter) getValidatorWithMissedBlocksSerialized(state Validato
 	return sb.String()
 }
 
-func (r *TelegramReporter) getValidatorsWithMissedBlocksSerialized(state []ValidatorState) (string, error) {
+func (r *TelegramReporter) getValidatorsWithMissedBlocksSerialized(state []types.ValidatorState) (string, error) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("<strong>Total validators:</strong> %d\n", len(state)))
 
@@ -427,8 +431,8 @@ func (r *TelegramReporter) getValidatorsWithMissedBlocksSerialized(state []Valid
 }
 
 func (r *TelegramReporter) getChainParamsSerialized(
-	slashingParams SlashingParams,
-	params *Params,
+	slashingParams client.SlashingParams,
+	params *config.Params,
 ) string {
 	nanoSecondsToJail := float64(slashingParams.MissedBlocksToJail) * params.AvgBlockTime * 1_000_000_000
 	durationToJail := time.Duration(math.Floor(nanoSecondsToJail))

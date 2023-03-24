@@ -1,0 +1,26 @@
+# Bech prefixes for network.
+bech-prefix = "evmos"
+# If a network has specific bech prefixes for validator and for consensus node
+# and their pubkeys, it's possible to specify them separately.
+bech-validator-prefix = "evmosvaloper"
+bech-validator-pubkey-prefix = "evmosvaloperpub"
+bech-consensus-node-prefix = "evmosvalcons"
+bech-consensus-node-pubkey-prefix = "evmosvalconspub"
+# Scrape interval, in seconds. Defaults to 120
+interval = 3
+
+# Telegram reporter. All fields are mandatory, otherwise the reporter won't be enabled.
+[telegram]
+# A Telegram bot token.
+token = ""
+# A Telegram chat to send messages to.
+chat = -123
+# Path to a file storing all information about people's links to validators.
+config-path = "/home/user/config/missed-blocks-checker-telegram-labels.toml"
+
+# Slack reporter. All fields are mandatory, otherwise the reporter won't be enabled.
+[slack]
+# A Slack bot token.
+token = ""
+# A Slack channel or username to send messages to.
+chat = "#general"

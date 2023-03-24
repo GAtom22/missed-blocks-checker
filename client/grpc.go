@@ -1,7 +1,9 @@
-package main
+package client
 
 import (
 	"context"
+	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/types"
 	"time"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -14,7 +16,7 @@ import (
 )
 
 type TendermintGRPC struct {
-	NodeConfig           NodeConfig
+	NodeConfig           config.NodeConfig
 	Limit                uint64
 	Client               *grpc.ClientConn
 	Logger               zerolog.Logger
@@ -23,7 +25,7 @@ type TendermintGRPC struct {
 }
 
 func NewTendermintGRPC(
-	nodeConfig NodeConfig,
+	nodeConfig config.NodeConfig,
 	registry codectypes.InterfaceRegistry,
 	queryEachSigningInfo bool,
 	logger *zerolog.Logger,
@@ -33,7 +35,7 @@ func NewTendermintGRPC(
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		GetDefaultLogger().Fatal().Err(err).Msg("Could not establish gRPC connection")
+		config.GetDefaultLogger().Fatal().Err(err).Msg("Could not establish gRPC connection")
 	}
 
 	return &TendermintGRPC{
@@ -77,41 +79,25 @@ func (grpc *TendermintGRPC) GetSlashingParams() SlashingParams {
 	}
 }
 
-func (grpc *TendermintGRPC) GetValidatorsState() (ValidatorsState, error) {
+// GetValidatorsState gets all validators state
+func (grpc *TendermintGRPC) GetValidatorsState() (types.ValidatorsState, error) {
 	if grpc.QueryEachSigningInfo {
 		return grpc.GetValidatorsStateWithEachSigningInfo()
 	}
-
-	slashingClient := slashingtypes.NewQueryClient(grpc.Client)
-	signingInfos, err := slashingClient.SigningInfos(
-		context.Background(),
-		&slashingtypes.QuerySigningInfosRequest{
-			Pagination: &querytypes.PageRequest{
-				Limit: grpc.Limit,
-			},
-		},
-	)
+	infos, err := grpc.GetValidatorsSigningInfo()
 	if err != nil {
 		grpc.Logger.Error().Err(err).Msg("Could not query for signing info")
 		return nil, err
 	}
 
-	stakingClient := stakingtypes.NewQueryClient(grpc.Client)
-	validatorsResult, err := stakingClient.Validators(
-		context.Background(),
-		&stakingtypes.QueryValidatorsRequest{
-			Pagination: &querytypes.PageRequest{
-				Limit: grpc.Limit,
-			},
-		},
-	)
+	validators, err := grpc.GetValidators()
 	if err != nil {
 		grpc.Logger.Error().Err(err).Msg("Could not query for validators")
 		return nil, err
 	}
 
-	validatorsMap := make(map[string]stakingtypes.Validator, len(validatorsResult.Validators))
-	for _, validator := range validatorsResult.Validators {
+	validatorsMap := make(map[string]stakingtypes.Validator, len(validators))
+	for _, validator := range validators {
 		err := validator.UnpackInterfaces(grpc.Registry)
 		if err != nil {
 			grpc.Logger.Error().Err(err).Msg("Could not unpack interface")
@@ -127,39 +113,68 @@ func (grpc *TendermintGRPC) GetValidatorsState() (ValidatorsState, error) {
 		validatorsMap[pubKey.String()] = validator
 	}
 
-	newState := make(ValidatorsState, len(signingInfos.Info))
+	newState := make(types.ValidatorsState, len(infos))
 
-	for _, info := range signingInfos.Info {
+	for _, info := range infos {
 		validator, ok := validatorsMap[info.Address]
 		if !ok {
 			grpc.Logger.Warn().Str("address", info.Address).Msg("Could not find validator by pubkey")
 			continue
 		}
 
-		newState[info.Address] = NewValidatorState(validator, info)
+		newState[info.Address] = types.NewValidatorState(validator, info)
 	}
 
 	return newState, nil
 }
 
-func (grpc *TendermintGRPC) GetValidatorsStateWithEachSigningInfo() (ValidatorsState, error) {
-	slashingClient := slashingtypes.NewQueryClient(grpc.Client)
-	stakingClient := stakingtypes.NewQueryClient(grpc.Client)
-	validatorsResult, err := stakingClient.Validators(
-		context.Background(),
-		&stakingtypes.QueryValidatorsRequest{
-			Pagination: &querytypes.PageRequest{
-				Limit: grpc.Limit,
-			},
-		},
-	)
+// GetValidatorState gets an especific validator state
+func (grpc *TendermintGRPC) GetValidatorState(address string) (types.ValidatorState, error) {
+
+	validator, err := grpc.GetValidator(address)
+	if err != nil {
+		return types.ValidatorState{}, err
+	}
+
+	err = validator.UnpackInterfaces(grpc.Registry) // Unpack interfaces, to populate the Anys' cached values
+	if err != nil {
+		grpc.Logger.Error().
+			Str("address", validator.OperatorAddress).
+			Err(err).
+			Msg("Could not get unpack validator inferfaces")
+		return types.ValidatorState{}, err
+	}
+
+	pubKey, err := validator.GetConsAddr()
+	if err != nil {
+		grpc.Logger.Error().
+			Str("address", validator.OperatorAddress).
+			Err(err).
+			Msg("Could not get validator pubkey")
+		return types.ValidatorState{}, err
+	}
+
+	info, err := grpc.GetValidatorSigningInfo(pubKey.String())
+	if err != nil {
+		grpc.Logger.Error().
+			Str("address", validator.OperatorAddress).
+			Err(err).
+			Msg("Could not get signing info")
+		return types.ValidatorState{}, err
+	}
+
+	return types.NewValidatorState(validator, info), nil
+}
+
+func (grpc *TendermintGRPC) GetValidatorsStateWithEachSigningInfo() (types.ValidatorsState, error) {
+	validators, err := grpc.GetValidators()
 	if err != nil {
 		grpc.Logger.Error().Err(err).Msg("Could not query for validators")
 		return nil, err
 	}
 
-	newState := make(ValidatorsState, len(validatorsResult.Validators))
-	for _, validator := range validatorsResult.Validators {
+	newState := make(types.ValidatorsState, len(validators))
+	for _, validator := range validators {
 		err := validator.UnpackInterfaces(grpc.Registry)
 		if err != nil {
 			grpc.Logger.Error().Err(err).Msg("Could not unpack interface")
@@ -172,18 +187,13 @@ func (grpc *TendermintGRPC) GetValidatorsStateWithEachSigningInfo() (ValidatorsS
 			return nil, err
 		}
 
-		info, err := slashingClient.SigningInfo(
-			context.Background(),
-			&slashingtypes.QuerySigningInfoRequest{
-				ConsAddress: pubKey.String(),
-			},
-		)
+		info, err := grpc.GetValidatorSigningInfo(pubKey.String())
 		if err != nil {
 			grpc.Logger.Error().Err(err).Msg("Could not query for signing info")
 			continue
 		}
 
-		newState[pubKey.String()] = NewValidatorState(validator, info.ValSigningInfo)
+		newState[pubKey.String()] = types.NewValidatorState(validator, info)
 	}
 
 	return newState, nil
@@ -191,8 +201,7 @@ func (grpc *TendermintGRPC) GetValidatorsStateWithEachSigningInfo() (ValidatorsS
 
 func (grpc *TendermintGRPC) GetValidator(address string) (stakingtypes.Validator, error) {
 	stakingClient := stakingtypes.NewQueryClient(grpc.Client)
-
-	validatorResponse, err := stakingClient.Validator(
+	res, err := stakingClient.Validator(
 		context.Background(),
 		&stakingtypes.QueryValidatorRequest{ValidatorAddr: address},
 	)
@@ -200,52 +209,57 @@ func (grpc *TendermintGRPC) GetValidator(address string) (stakingtypes.Validator
 		return stakingtypes.Validator{}, err
 	}
 
-	return validatorResponse.Validator, nil
+	return res.Validator, err
 }
 
-func (grpc *TendermintGRPC) GetValidatorState(address string) (ValidatorState, error) {
+func (grpc *TendermintGRPC) GetValidators() ([]stakingtypes.Validator, error) {
 	stakingClient := stakingtypes.NewQueryClient(grpc.Client)
-
-	validatorResponse, err := stakingClient.Validator(
+	res, err := stakingClient.Validators(
 		context.Background(),
-		&stakingtypes.QueryValidatorRequest{ValidatorAddr: address},
+		&stakingtypes.QueryValidatorsRequest{
+			Pagination: &querytypes.PageRequest{
+				Limit: grpc.Limit,
+			},
+		},
 	)
 	if err != nil {
-		return ValidatorState{}, err
+		return nil, err
 	}
 
-	validator := validatorResponse.Validator
+	return res.Validators, err
+}
+
+func (grpc *TendermintGRPC) GetValidatorsSigningInfo() ([]slashingtypes.ValidatorSigningInfo, error) {
+	slashingClient := slashingtypes.NewQueryClient(grpc.Client)
+	res, err := slashingClient.SigningInfos(
+		context.Background(),
+		&slashingtypes.QuerySigningInfosRequest{
+			Pagination: &querytypes.PageRequest{
+				Limit: grpc.Limit,
+			},
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Info, err
+}
+
+func (grpc *TendermintGRPC) GetValidatorSigningInfo(consAddress string) (slashingtypes.ValidatorSigningInfo, error) {
 	slashingClient := slashingtypes.NewQueryClient(grpc.Client)
 
-	err = validator.UnpackInterfaces(grpc.Registry) // Unpack interfaces, to populate the Anys' cached values
-	if err != nil {
-		grpc.Logger.Error().
-			Str("address", validator.OperatorAddress).
-			Err(err).
-			Msg("Could not get unpack validator inferfaces")
-		return ValidatorState{}, err
-	}
-
-	pubKey, err := validator.GetConsAddr()
-	if err != nil {
-		grpc.Logger.Error().
-			Str("address", validator.OperatorAddress).
-			Err(err).
-			Msg("Could not get validator pubkey")
-		return ValidatorState{}, err
-	}
-
-	signingInfosResponse, err := slashingClient.SigningInfo(
+	res, err := slashingClient.SigningInfo(
 		context.Background(),
-		&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},
+		&slashingtypes.QuerySigningInfoRequest{
+			ConsAddress: consAddress,
+		},
 	)
+
 	if err != nil {
-		grpc.Logger.Error().
-			Str("address", validator.OperatorAddress).
-			Err(err).
-			Msg("Could not get signing info")
-		return ValidatorState{}, err
+		return slashingtypes.ValidatorSigningInfo{}, err
 	}
 
-	return NewValidatorState(validator, signingInfosResponse.ValSigningInfo), nil
+	return res.ValSigningInfo, err
 }

@@ -4,28 +4,25 @@ import (
 	"fmt"
 	"time"
 
+	"github/GAtom22/missedblocks/client"
+	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/reporter"
+
 	"github.com/cosmos/cosmos-sdk/simapp"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 )
 
-type Params struct {
-	AvgBlockTime       float64
-	SignedBlocksWindow int64
-	MissedBlocksToJail int64
-}
-
 func Execute(configPath string) {
-	appConfig, err := LoadConfig(configPath)
+	appConfig, err := config.LoadConfig(configPath)
 	if err != nil {
-		GetDefaultLogger().Fatal().Err(err).Msg("Could not load config")
+		config.GetDefaultLogger().Fatal().Err(err).Msg("Could not load config")
 	}
 
 	appConfig.Validate()        // will exit if not valid
 	appConfig.SetBechPrefixes() // will exit if not valid
-	SetSdkConfigPrefixes(appConfig)
+	config.SetSdkConfigPrefixes(appConfig)
 
-	log := GetLogger(appConfig.LogConfig)
+	log := config.GetLogger(appConfig.LogConfig)
 
 	if len(appConfig.IncludeValidators) == 0 && len(appConfig.ExcludeValidators) == 0 {
 		log.Info().Msg("Monitoring all validators")
@@ -42,12 +39,12 @@ func Execute(configPath string) {
 	encCfg := simapp.MakeTestEncodingConfig()
 	interfaceRegistry := encCfg.InterfaceRegistry
 
-	rpc := NewTendermintRPC(appConfig.NodeConfig, log)
-	grpc := NewTendermintGRPC(appConfig.NodeConfig, interfaceRegistry, appConfig.QueryEachSigningInfo, log)
+	http := client.NewTendermintHTTP(appConfig.NodeConfig, log)
+	grpc := client.NewTendermintGRPC(appConfig.NodeConfig, interfaceRegistry, appConfig.QueryEachSigningInfo, log)
 	slashingParams := grpc.GetSlashingParams()
 
-	params := Params{
-		AvgBlockTime:       rpc.GetAvgBlockTime(),
+	params := config.Params{
+		AvgBlockTime:       http.GetAvgBlockTime(),
 		SignedBlocksWindow: slashingParams.SignedBlocksWindow,
 		MissedBlocksToJail: slashingParams.MissedBlocksToJail,
 	}
@@ -66,9 +63,9 @@ func Execute(configPath string) {
 		Str("config", fmt.Sprintf("%+v", appConfig)).
 		Msg("Started with following parameters")
 
-	reporters := []Reporter{
-		NewTelegramReporter(appConfig.ChainInfoConfig, appConfig.TelegramConfig, appConfig, &params, grpc, log),
-		NewSlackReporter(appConfig.ChainInfoConfig, appConfig.SlackConfig, &params, log),
+	reporters := []reporter.Reporter{
+		reporter.NewTelegramReporter(appConfig.ChainInfoConfig, appConfig.TelegramConfig, appConfig, &params, grpc, log),
+		reporter.NewSlackReporter(appConfig.ChainInfoConfig, appConfig.SlackConfig, &params, log),
 	}
 
 	for _, reporter := range reporters {
@@ -79,7 +76,7 @@ func Execute(configPath string) {
 		}
 	}
 
-	reportGenerator := NewReportGenerator(params, grpc, appConfig, log, interfaceRegistry)
+	reportGenerator := reporter.NewReportGenerator(params, grpc, appConfig, log, interfaceRegistry)
 
 	for {
 		report := reportGenerator.GenerateReport()
@@ -105,13 +102,6 @@ func Execute(configPath string) {
 	}
 }
 
-func SetSdkConfigPrefixes(appConfig *AppConfig) {
-	config := sdk.GetConfig()
-	config.SetBech32PrefixForValidator(appConfig.ValidatorPrefix, appConfig.ValidatorPubkeyPrefix)
-	config.SetBech32PrefixForConsensusNode(appConfig.ConsensusNodePrefix, appConfig.ConsensusNodePubkeyPrefix)
-	config.Seal()
-}
-
 func main() {
 	var ConfigPath string
 
@@ -125,10 +115,10 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
 	if err := rootCmd.MarkPersistentFlagRequired("config"); err != nil {
-		GetDefaultLogger().Fatal().Err(err).Msg("Could not set flags")
+		config.GetDefaultLogger().Fatal().Err(err).Msg("Could not set flags")
 	}
 
 	if err := rootCmd.Execute(); err != nil {
-		GetDefaultLogger().Fatal().Err(err).Msg("Could not start application")
+		config.GetDefaultLogger().Fatal().Err(err).Msg("Could not start application")
 	}
 }

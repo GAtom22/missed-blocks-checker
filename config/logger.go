@@ -1,8 +1,8 @@
-package main
+package config
 
 import (
 	"os"
-
+	
 	"github.com/rs/zerolog"
 )
 

@@ -1,7 +1,8 @@
-package main
+package client
 
 import (
 	"context"
+	"github/GAtom22/missedblocks/config"
 
 	"github.com/rs/zerolog"
 	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
@@ -9,12 +10,12 @@ import (
 )
 
 type TendermintRPC struct {
-	NodeConfig          NodeConfig
+	NodeConfig          config.NodeConfig
 	BlocksDiffInThePast int64
 	Logger              zerolog.Logger
 }
 
-func NewTendermintRPC(nodeConfig NodeConfig, logger *zerolog.Logger) *TendermintRPC {
+func NewTendermintHTTP(nodeConfig config.NodeConfig, logger *zerolog.Logger) *TendermintRPC {
 	return &TendermintRPC{
 		NodeConfig:          nodeConfig,
 		BlocksDiffInThePast: 100,

@@ -1,7 +1,8 @@
-package main
+package reporter
 
 import (
 	"fmt"
+	"github/GAtom22/missedblocks/config"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -9,18 +10,18 @@ import (
 )
 
 type SlackReporter struct {
-	ChainInfoConfig ChainInfoConfig
-	SlackConfig     SlackConfig
-	Params          *Params
+	ChainInfoConfig config.ChainInfoConfig
+	SlackConfig     config.SlackConfig
+	Params          *config.Params
 	Logger          zerolog.Logger
 
 	SlackClient slack.Client
 }
 
 func NewSlackReporter(
-	chainInfoConfig ChainInfoConfig,
-	slackConfig SlackConfig,
-	params *Params,
+	chainInfoConfig config.ChainInfoConfig,
+	slackConfig config.SlackConfig,
+	params *config.Params,
 	logger *zerolog.Logger,
 ) *SlackReporter {
 	return &SlackReporter{

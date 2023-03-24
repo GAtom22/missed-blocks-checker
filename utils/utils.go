@@ -1,6 +1,6 @@
-package main
+package utils
 
-func stringInSlice(first string, list []string) bool {
+func StringInSlice(first string, list []string) bool {
 	for _, second := range list {
 		if first == second {
 			return true
@@ -9,7 +9,7 @@ func stringInSlice(first string, list []string) bool {
 	return false
 }
 
-func removeFromSlice(slice []string, r string) []string {
+func RemoveFromSlice(slice []string, r string) []string {
 	for i, v := range slice {
 		if v == r {
 			return append(slice[:i], slice[i+1:]...)

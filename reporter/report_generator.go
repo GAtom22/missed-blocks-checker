@@ -1,25 +1,29 @@
-package main
+package reporter
 
 import (
 	"fmt"
+	"github/GAtom22/missedblocks/client"
+	"github/GAtom22/missedblocks/config"
+	"github/GAtom22/missedblocks/types"
+	"github/GAtom22/missedblocks/utils"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/rs/zerolog"
 )
 
 type ReportGenerator struct {
-	Params   Params
-	Config   *AppConfig
-	gRPC     *TendermintGRPC
+	Params   config.Params
+	Config   *config.AppConfig
+	gRPC     *client.TendermintGRPC
 	Logger   zerolog.Logger
-	State    ValidatorsState
+	State    types.ValidatorsState
 	Registry codectypes.InterfaceRegistry
 }
 
 func NewReportGenerator(
-	params Params,
-	grpc *TendermintGRPC,
-	config *AppConfig,
+	params config.Params,
+	grpc *client.TendermintGRPC,
+	config *config.AppConfig,
 	logger *zerolog.Logger,
 	registry codectypes.InterfaceRegistry,
 ) *ReportGenerator {
@@ -32,7 +36,7 @@ func NewReportGenerator(
 	}
 }
 
-func (g *ReportGenerator) GetNewState() (ValidatorsState, error) {
+func (g *ReportGenerator) GetNewState() (types.ValidatorsState, error) {
 	g.Logger.Debug().Msg("Querying for signing infos...")
 
 	state, err := g.gRPC.GetValidatorsState()
@@ -41,12 +45,12 @@ func (g *ReportGenerator) GetNewState() (ValidatorsState, error) {
 		return nil, err
 	}
 
-	return FilterMap(state, func(v ValidatorState) bool {
+	return utils.FilterMap(state, func(v types.ValidatorState) bool {
 		return g.Config.IsValidatorMonitored(v.Address)
 	}), nil
 }
 
-func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState ValidatorState) (*ReportEntry, bool) {
+func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.ValidatorState) (*ReportEntry, bool) {
 	g.Logger.Trace().
 		Str("oldState", fmt.Sprintf("%+v", oldState)).
 		Str("newState", fmt.Sprintf("%+v", newState)).
@@ -60,8 +64,8 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState ValidatorSt
 		return &ReportEntry{
 			ValidatorAddress: newState.Address,
 			ValidatorMoniker: newState.Moniker,
-			Emoji:            TombstonedEmoji,
-			Description:      TombstonedDesc,
+			Emoji:            types.TombstonedEmoji,
+			Description:      types.TombstonedDesc,
 			Direction:        TOMBSTONED,
 		}, true
 	}
@@ -74,8 +78,8 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState ValidatorSt
 		return &ReportEntry{
 			ValidatorAddress: newState.Address,
 			ValidatorMoniker: newState.Moniker,
-			Emoji:            JailedEmoju,
-			Description:      JailedDesc,
+			Emoji:            types.JailedEmoju,
+			Description:      types.JailedDesc,
 			Direction:        JAILED,
 		}, true
 	}
@@ -88,8 +92,8 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState ValidatorSt
 		return &ReportEntry{
 			ValidatorAddress: newState.Address,
 			ValidatorMoniker: newState.Moniker,
-			Emoji:            UnjailedEmoji,
-			Description:      UnjailedDesc,
+			Emoji:            types.UnjailedEmoji,
+			Description:      types.UnjailedDesc,
 			Direction:        UNJAILED,
 		}, true
 	}

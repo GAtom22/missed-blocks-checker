@@ -151,7 +151,7 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.Valid
 		// Need to understand which one it is: if old missed blocks < new missed blocks -
 		// it's 1), if vice versa, then 2)
 
-		if oldState.MissedBlocks < newState.MissedBlocks {
+		if delta > 0 {
 			// skipping blocks
 			g.Logger.Debug().
 				Str("address", oldState.Address).

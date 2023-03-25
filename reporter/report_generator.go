@@ -106,11 +106,8 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.Valid
 		return nil, false
 	}
 
-	var delta int64
 	// record the delta for the metrics
-	if newState.MissedBlocks != oldState.MissedBlocks {
-		delta = newState.MissedBlocks - oldState.MissedBlocks
-	}
+	delta := newState.MissedBlocks - oldState.MissedBlocks
 
 	entry := &ReportEntry{
 		ValidatorAddress: newState.Address,

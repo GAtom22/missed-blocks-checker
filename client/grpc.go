@@ -24,13 +24,13 @@ type TendermintGRPC struct {
 }
 
 func NewTendermintGRPC(
-	gRpcAddress string,
+	gRPCAddress string,
 	registry codectypes.InterfaceRegistry,
 	queryEachSigningInfo bool,
 	logger *zerolog.Logger,
 ) *TendermintGRPC {
 	grpcConn, err := grpc.Dial(
-		gRpcAddress,
+		gRPCAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {

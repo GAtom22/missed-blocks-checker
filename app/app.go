@@ -100,7 +100,7 @@ func start(conf *config.AppConfig) {
 			continue
 		}
 
-		enabledReporters := 0 
+		enabledReporters := 0
 		for _, reporter := range reporters {
 			if !reporter.Enabled() {
 				log.Debug().Str("name", reporter.Name()).Msg("Reporter is disabled.")

@@ -53,12 +53,12 @@ func start(conf *config.AppConfig) {
 	encCfg := simapp.MakeTestEncodingConfig()
 	interfaceRegistry := encCfg.InterfaceRegistry
 
-	http := client.NewTendermintHTTP(conf.NodeConfig.TendermintRPC, log)
+	rpc := client.NewTendermintRPC(conf.NodeConfig.TendermintRPC, log)
 	grpc := client.NewTendermintGRPC(conf.NodeConfig.GrpcAddress, interfaceRegistry, conf.QueryEachSigningInfo, log)
 	slashingParams := grpc.GetSlashingParams()
 
 	params := config.Params{
-		AvgBlockTime:       http.GetAvgBlockTime(),
+		AvgBlockTime:       rpc.GetAvgBlockTime(),
 		SignedBlocksWindow: slashingParams.SignedBlocksWindow,
 		MissedBlocksToJail: slashingParams.MissedBlocksToJail,
 	}

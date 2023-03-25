@@ -8,21 +8,21 @@ import (
 	ctypes "github.com/tendermint/tendermint/types"
 )
 
-type TendermintHTTP struct {
+type TendermintRPC struct {
 	URL                 string
 	BlocksDiffInThePast int64
 	Logger              zerolog.Logger
 }
 
-func NewTendermintHTTP(url string, logger *zerolog.Logger) *TendermintHTTP {
-	return &TendermintHTTP{
+func NewTendermintRPC(url string, logger *zerolog.Logger) *TendermintRPC {
+	return &TendermintRPC{
 		URL:                 url,
 		BlocksDiffInThePast: 10,
 		Logger:              logger.With().Str("component", "rpc").Logger(),
 	}
 }
 
-func (tHttp *TendermintHTTP) GetAvgBlockTime() float64 {
+func (tHttp *TendermintRPC) GetAvgBlockTime() float64 {
 	latestBlock := tHttp.GetBlock(nil)
 	latestHeight := latestBlock.Height
 	beforeLatestBlockHeight := latestBlock.Height - tHttp.BlocksDiffInThePast
@@ -34,7 +34,7 @@ func (tHttp *TendermintHTTP) GetAvgBlockTime() float64 {
 	return timeDiff / heightDiff
 }
 
-func (tHttp *TendermintHTTP) GetBlock(height *int64) *ctypes.Block {
+func (tHttp *TendermintRPC) GetBlock(height *int64) *ctypes.Block {
 	client, err := tmrpc.New(tHttp.URL, "/websocket")
 	if err != nil {
 		tHttp.Logger.Fatal().Err(err).Msg("Could not create Tendermint client")

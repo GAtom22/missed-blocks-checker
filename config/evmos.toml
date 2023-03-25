@@ -9,6 +9,11 @@ bech-consensus-node-pubkey-prefix = "evmosvalconspub"
 # Scrape interval, in seconds. Defaults to 120
 interval = 3
 
+[log]
+# Log level. Defaults to 'info', you can set it to 'debug' or even 'trace'
+# to make it more verbose.
+level = "debug"
+
 # Telegram reporter. All fields are mandatory, otherwise the reporter won't be enabled.
 [telegram]
 # A Telegram bot token.

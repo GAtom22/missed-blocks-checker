@@ -116,6 +116,9 @@ func (g MissedBlocksGroups) Validate(window int64) error {
 	}
 
 	for i := 0; i < len(g)-1; i++ {
+		if g[i+1].Start-g[i].End == 0 { 
+			continue
+		}
 		if g[i+1].Start-g[i].End != 1 {
 			return fmt.Errorf(
 				"MissedBlocksGroup at index %d ends at %d, and the next one starts with %d",

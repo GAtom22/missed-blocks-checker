@@ -54,7 +54,7 @@ func start(conf *config.AppConfig) {
 	interfaceRegistry := encCfg.InterfaceRegistry
 
 	http := client.NewTendermintHTTP(conf.NodeConfig.TendermintRPC, log)
-	grpc := client.NewTendermintGRPC(conf.NodeConfig, interfaceRegistry, conf.QueryEachSigningInfo, log)
+	grpc := client.NewTendermintGRPC(conf.NodeConfig.GrpcAddress, interfaceRegistry, conf.QueryEachSigningInfo, log)
 	slashingParams := grpc.GetSlashingParams()
 
 	params := config.Params{

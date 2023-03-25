@@ -16,7 +16,6 @@ import (
 )
 
 type TendermintGRPC struct {
-	NodeConfig           config.NodeConfig
 	Limit                uint64
 	Client               *grpc.ClientConn
 	Logger               zerolog.Logger
@@ -25,13 +24,13 @@ type TendermintGRPC struct {
 }
 
 func NewTendermintGRPC(
-	nodeConfig config.NodeConfig,
+	gRpcAddress string,
 	registry codectypes.InterfaceRegistry,
 	queryEachSigningInfo bool,
 	logger *zerolog.Logger,
 ) *TendermintGRPC {
 	grpcConn, err := grpc.Dial(
-		nodeConfig.GrpcAddress,
+		gRpcAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -39,7 +38,6 @@ func NewTendermintGRPC(
 	}
 
 	return &TendermintGRPC{
-		NodeConfig:           nodeConfig,
 		Limit:                1000,
 		Logger:               logger.With().Str("component", "grpc").Logger(),
 		Client:               grpcConn,

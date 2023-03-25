@@ -17,7 +17,7 @@ type TendermintHTTP struct {
 func NewTendermintHTTP(url string, logger *zerolog.Logger) *TendermintHTTP {
 	return &TendermintHTTP{
 		URL:                 url,
-		BlocksDiffInThePast: 100,
+		BlocksDiffInThePast: 10,
 		Logger:              logger.With().Str("component", "rpc").Logger(),
 	}
 }

@@ -50,7 +50,7 @@ func (g *ReportGenerator) GetNewState() (types.ValidatorsState, error) {
 	}), nil
 }
 
-func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.ValidatorState) (*ReportEntry, bool) {
+func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.ValidatorState, ignoreGroups bool) (*ReportEntry, bool) {
 	g.Logger.Trace().
 		Str("oldState", fmt.Sprintf("%+v", oldState)).
 		Str("newState", fmt.Sprintf("%+v", newState)).
@@ -106,69 +106,78 @@ func (g *ReportGenerator) GetValidatorReportEntry(oldState, newState types.Valid
 		return nil, false
 	}
 
-	// 5. Validator isn't and wasn't jailed.
-	//
-	// First, check if old and new groups are the same - if they have different start,
-	// they are different. If they don't - they aren't so no need to send a notification.
-	oldGroup, oldGroupErr := g.Config.MissedBlocksGroups.GetGroup(oldState.MissedBlocks)
-	if oldGroupErr != nil {
-		g.Logger.Error().Err(oldGroupErr).Msg("Could not get old group")
-		return nil, false
+	var delta int64
+	// record the delta for the metrics
+	if newState.MissedBlocks != oldState.MissedBlocks {
+		delta = newState.MissedBlocks - oldState.MissedBlocks
 	}
-	newGroup, newGroupErr := g.Config.MissedBlocksGroups.GetGroup(newState.MissedBlocks)
-	if newGroupErr != nil {
-		g.Logger.Error().Err(newGroupErr).Msg("Could not get new group")
-		return nil, false
-	}
-
-	if oldGroup.Start == newGroup.Start {
-		g.Logger.Debug().
-			Str("address", oldState.Address).
-			Int64("before", oldState.MissedBlocks).
-			Int64("after", newState.MissedBlocks).
-			Msg("Validator didn't change group - no need to send report")
-		return nil, false
-	}
-
-	// Validator switched from one MissedBlockGroup to another, 2 cases how that may happen
-	// 1) validator is skipping blocks
-	// 2) validator skipped some blocks in the past, but recovered, is now signing, and the window
-	// moves - the amount of missed blocks is decreasing.
-	// Need to understand which one it is: if old missed blocks < new missed blocks -
-	// it's 1), if vice versa, then 2)
 
 	entry := &ReportEntry{
 		ValidatorAddress: newState.Address,
 		ValidatorMoniker: newState.Moniker,
 		MissingBlocks:    newState.MissedBlocks,
+		Delta:            delta,
 	}
 
-	if oldState.MissedBlocks < newState.MissedBlocks {
-		// skipping blocks
-		g.Logger.Debug().
-			Str("address", oldState.Address).
-			Int64("before", oldState.MissedBlocks).
-			Int64("after", newState.MissedBlocks).
-			Msg("Validator's missed blocks increasing")
-		entry.Direction = INCREASING
-		entry.Emoji = newGroup.EmojiStart
-		entry.Description = newGroup.DescStart
-	} else {
-		// restoring
-		g.Logger.Debug().
-			Str("address", oldState.Address).
-			Int64("before", oldState.MissedBlocks).
-			Int64("after", newState.MissedBlocks).
-			Msg("Validator's missed blocks decreasing")
-		entry.Direction = DECREASING
-		entry.Emoji = newGroup.EmojiEnd
-		entry.Description = newGroup.DescEnd
+	// 5. Validator isn't and wasn't jailed.
+	//
+	// First, check if old and new groups are the same - if they have different start,
+	// they are different. If they don't - they aren't so no need to send a notification.
+	if !ignoreGroups {
+		oldGroup, oldGroupErr := g.Config.MissedBlocksGroups.GetGroup(oldState.MissedBlocks)
+		if oldGroupErr != nil {
+			g.Logger.Error().Err(oldGroupErr).Msg("Could not get old group")
+			return nil, false
+		}
+		newGroup, newGroupErr := g.Config.MissedBlocksGroups.GetGroup(newState.MissedBlocks)
+		if newGroupErr != nil {
+			g.Logger.Error().Err(newGroupErr).Msg("Could not get new group")
+			return nil, false
+		}
+
+		if oldGroup.Start == newGroup.Start {
+			g.Logger.Debug().
+				Str("address", oldState.Address).
+				Int64("before", oldState.MissedBlocks).
+				Int64("after", newState.MissedBlocks).
+				Msg("Validator didn't change group - no need to send report")
+			return nil, false
+		}
+
+		// Validator switched from one MissedBlockGroup to another, 2 cases how that may happen
+		// 1) validator is skipping blocks
+		// 2) validator skipped some blocks in the past, but recovered, is now signing, and the window
+		// moves - the amount of missed blocks is decreasing.
+		// Need to understand which one it is: if old missed blocks < new missed blocks -
+		// it's 1), if vice versa, then 2)
+
+		if oldState.MissedBlocks < newState.MissedBlocks {
+			// skipping blocks
+			g.Logger.Debug().
+				Str("address", oldState.Address).
+				Int64("before", oldState.MissedBlocks).
+				Int64("after", newState.MissedBlocks).
+				Msg("Validator's missed blocks increasing")
+			entry.Direction = INCREASING
+			entry.Emoji = newGroup.EmojiStart
+			entry.Description = newGroup.DescStart
+		} else {
+			// restoring
+			g.Logger.Debug().
+				Str("address", oldState.Address).
+				Int64("before", oldState.MissedBlocks).
+				Int64("after", newState.MissedBlocks).
+				Msg("Validator's missed blocks decreasing")
+			entry.Direction = DECREASING
+			entry.Emoji = newGroup.EmojiEnd
+			entry.Description = newGroup.DescEnd
+		}
 	}
 
 	return entry, true
 }
 
-func (g *ReportGenerator) GenerateReport() *Report {
+func (g *ReportGenerator) GenerateReport(ignoreGroups bool) *Report {
 	newState, err := g.GetNewState()
 	if err != nil {
 		g.Logger.Error().Err(err).Msg("Error getting new state")
@@ -190,7 +199,7 @@ func (g *ReportGenerator) GenerateReport() *Report {
 			continue
 		}
 
-		entry, present := g.GetValidatorReportEntry(oldState, info)
+		entry, present := g.GetValidatorReportEntry(oldState, info, ignoreGroups)
 		if !present {
 			g.Logger.Trace().
 				Str("address", address).

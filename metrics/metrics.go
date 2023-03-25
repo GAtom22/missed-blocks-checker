@@ -6,15 +6,15 @@ import (
 )
 
 var missedBlocks = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "missed_blocks",
+	Name: "tendermint_missed_blocks",
 	Help: "The total number of missed blocks by validator",
 },
 	[]string{"validator_address"},
 )
 
-func UpdateMissedBlocks(valAddr string, count int64) {
-	if count <= 0 {
+func UpdateMissedBlocks(valAddr string, delta int64) {
+	if delta <= 0 {
 		return
 	}
-	missedBlocks.WithLabelValues(valAddr).Add(float64(count))
+	missedBlocks.WithLabelValues(valAddr).Add(float64(delta))
 }

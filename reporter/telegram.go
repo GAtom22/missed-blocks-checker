@@ -151,7 +151,7 @@ func (r TelegramReporter) Serialize(report Report) string {
 			notifiers,
 		))
 		if r.AppConfig.Metrics.Enabled {
-			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.MissingBlocks)
+			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.Delta)
 		}
 	}
 

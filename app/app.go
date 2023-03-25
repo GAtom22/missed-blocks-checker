@@ -93,19 +93,20 @@ func start(conf *config.AppConfig) {
 	reportGenerator := reporter.NewReportGenerator(params, grpc, conf, log, interfaceRegistry)
 
 	for {
-		report := reportGenerator.GenerateReport()
+		report := reportGenerator.GenerateReport(conf.IgnoreGroups)
 		if report == nil || len(report.Entries) == 0 {
 			log.Info().Msg("Report is empty, not sending.")
 			time.Sleep(time.Duration(conf.Interval) * time.Second)
 			continue
 		}
 
+		enabledReporters := 0 
 		for _, reporter := range reporters {
 			if !reporter.Enabled() {
 				log.Debug().Str("name", reporter.Name()).Msg("Reporter is disabled.")
 				continue
 			}
-
+			enabledReporters++
 			log.Info().Str("name", reporter.Name()).Msg("Sending a report to reporter...")
 			if err := reporter.SendReport(*report); err != nil {
 				log.Error().Err(err).Str("name", reporter.Name()).Msg("Could not send message")
@@ -113,10 +114,11 @@ func start(conf *config.AppConfig) {
 		}
 
 		// if no reporters but metrics enabled, update the metrics
-		if len(reporters) == 0 && conf.Metrics.Enabled {
+		if enabledReporters == 0 && conf.Metrics.Enabled {
 			for _, e := range report.Entries {
-				metrics.UpdateMissedBlocks(e.ValidatorAddress, e.MissingBlocks)
+				metrics.UpdateMissedBlocks(e.ValidatorAddress, e.Delta)
 			}
+			log.Debug().Int("entries", len(report.Entries)).Msg("Updated metrics.")
 		}
 
 		time.Sleep(time.Duration(conf.Interval) * time.Second)

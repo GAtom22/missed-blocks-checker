@@ -29,6 +29,7 @@ type ReportEntry struct {
 	Emoji            string
 	Description      string
 	MissingBlocks    int64
+	Delta            int64
 	Direction        Direction
 }
 

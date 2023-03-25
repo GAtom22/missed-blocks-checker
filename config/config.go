@@ -81,6 +81,7 @@ type AppConfig struct {
 	ExcludeValidators []string `toml:"exclude-validators"`
 
 	MissedBlocksGroups MissedBlocksGroups `toml:"missed-blocks-groups"`
+	IgnoreGroups       bool               `toml:"ignore-groups"`
 
 	TelegramConfig TelegramAppConfig `toml:"telegram"`
 	SlackConfig    SlackConfig       `toml:"slack"`
@@ -116,7 +117,7 @@ func (g MissedBlocksGroups) Validate(window int64) error {
 	}
 
 	for i := 0; i < len(g)-1; i++ {
-		if g[i+1].Start-g[i].End == 0 { 
+		if g[i+1].Start-g[i].End == 0 {
 			continue
 		}
 		if g[i+1].Start-g[i].End != 1 {

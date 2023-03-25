@@ -59,7 +59,7 @@ func (r SlackReporter) Serialize(report Report) string {
 		))
 
 		if r.metrics {
-			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.MissingBlocks)
+			metrics.UpdateMissedBlocks(entry.ValidatorAddress, entry.Delta)
 		}
 	}
 

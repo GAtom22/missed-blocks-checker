@@ -54,7 +54,7 @@ func (c *ChainInfoConfig) GetValidatorPage(address string, text string) string {
 
 type NodeConfig struct {
 	GrpcAddress   string `toml:"grpc-address" default:"localhost:9090"`
-	TendermintRPC string `toml:"http-address" default:"http://localhost:26657"`
+	TendermintRPC string `toml:"rpc-address" default:"http://localhost:26657"`
 }
 
 type Metrics struct {
